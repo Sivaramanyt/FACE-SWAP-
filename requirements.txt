@@ -1,8 +1,9 @@
-pyrogram
+pyrogram==2.0.106
 TgCrypto
-opencv-python
-insightface
-gfpgan
-numpy
+opencv-python-headless
+insightface==0.7.3
+gfpgan==1.3.8
+numpy==1.24.3
 aiofiles
 aiohttp
+onnxruntime
