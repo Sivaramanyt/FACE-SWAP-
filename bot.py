@@ -1,36 +1,30 @@
-from pyrogram import Client, filters
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 import os
 import asyncio
 from aiohttp import web
-import threading
+from pyrogram import Client, filters
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
-# Your bot credentials
-API_ID = os.getenv('API_ID')
+# Get credentials from environment variables
+API_ID = int(os.getenv('API_ID'))
 API_HASH = os.getenv('API_HASH')
 BOT_TOKEN = os.getenv('BOT_TOKEN')
 
-if API_ID:
-    API_ID = int(API_ID)
+# Debug: Check if environment variables are loaded
+print(f"API_ID: {API_ID}")
+print(f"API_HASH: {'Set' if API_HASH else 'Not Set'}")
+print(f"BOT_TOKEN: {'Set' if BOT_TOKEN else 'Not Set'}")
 
+# Initialize Pyrogram client
 app = Client("face_swap_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
-# Health check server for Koyeb
+# Health check endpoints for Koyeb
 async def health_check(request):
     return web.Response(text="✅ Face Swap Bot is healthy and running!", status=200)
 
-async def start_health_server():
-    health_app = web.Application()
-    health_app.router.add_get('/', health_check)
-    health_app.router.add_get('/health', health_check)
-    
-    runner = web.AppRunner(health_app)
-    await runner.setup()
-    site = web.TCPSite(runner, '0.0.0.0', 8000)
-    await site.start()
-    print("✅ Health check server started on port 8000")
+async def root_check(request):
+    return web.Response(text="🤖 Face Swap Bot - Ready for face swapping!", status=200)
 
-# Your existing bot handlers (keep exactly the same)
+# Bot command handlers
 @app.on_message(filters.command("start"))
 async def start_command(client, message):
     keyboard = InlineKeyboardMarkup([
@@ -42,7 +36,7 @@ async def start_command(client, message):
     welcome_text = f"""🤖 **Face Swap Bot**
 
 ✅ **Bot is running successfully!**
-🟢 **Status: Healthy**
+🟢 **Status: Healthy on Koyeb**
 
 **Available Features:**
 📸 Image Face Swap (Coming Soon)
@@ -78,19 +72,50 @@ async def handle_video(client, message):
 async def handle_text(client, message):
     await message.reply("👋 **Hello!**\n\nUse /start to see available options.\n\n✅ Face Swap Bot is working properly!")
 
-# Start both health server and bot
+# Main function that starts everything
 async def main():
-    # Start health check server
-    await start_health_server()
-    
-    # Start the bot
     print("🚀 Starting Face Swap Bot...")
-    print("✅ All systems ready!")
+    
+    # Create and start health check web server FIRST
+    health_app = web.Application()
+    health_app.router.add_get('/', root_check)
+    health_app.router.add_get('/health', health_check)
+    
+    # Setup web server
+    runner = web.AppRunner(health_app)
+    await runner.setup()
+    
+    # Get port from environment variable (Koyeb sets this automatically)
+    port = int(os.getenv('PORT', 8000))
+    site = web.TCPSite(runner, '0.0.0.0', port)
+    await site.start()
+    
+    print(f"✅ Health check server started on port {port}")
+    print("🌐 Koyeb health checks will now pass!")
+    
+    # Give the web server a moment to fully initialize
+    await asyncio.sleep(2)
+    
+    # Start the Telegram bot
     await app.start()
+    print("✅ Telegram bot connected and ready!")
+    print("🤖 Face Swap Bot is fully operational!")
     
-    # Keep running
-    await asyncio.Event().wait()
+    # Keep the application running forever
+    try:
+        await asyncio.Event().wait()
+    except KeyboardInterrupt:
+        print("🛑 Bot stopped by user")
+        await app.stop()
+        await runner.cleanup()
 
+# Entry point
 if __name__ == "__main__":
-    asyncio.run(main())
+    print("⚡ Initializing Face Swap Bot...")
+    print("🔧 Setting up health checks for Koyeb...")
     
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("👋 Face Swap Bot shutdown complete")
+            
