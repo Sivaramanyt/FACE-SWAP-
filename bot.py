@@ -1,23 +1,36 @@
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 import os
+import asyncio
+from aiohttp import web
+import threading
 
-# Environment variables with fallback values for testing
+# Your bot credentials
 API_ID = os.getenv('API_ID')
 API_HASH = os.getenv('API_HASH')
 BOT_TOKEN = os.getenv('BOT_TOKEN')
 
-# Debug: Check if environment variables are loaded
-print(f"API_ID: {API_ID}")
-print(f"API_HASH: {'Set' if API_HASH else 'Not Set'}")
-print(f"BOT_TOKEN: {'Set' if BOT_TOKEN else 'Not Set'}")
-
-# Convert API_ID to integer
 if API_ID:
     API_ID = int(API_ID)
 
 app = Client("face_swap_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
+# Health check server for Koyeb
+async def health_check(request):
+    return web.Response(text="✅ Face Swap Bot is healthy and running!", status=200)
+
+async def start_health_server():
+    health_app = web.Application()
+    health_app.router.add_get('/', health_check)
+    health_app.router.add_get('/health', health_check)
+    
+    runner = web.AppRunner(health_app)
+    await runner.setup()
+    site = web.TCPSite(runner, '0.0.0.0', 8000)
+    await site.start()
+    print("✅ Health check server started on port 8000")
+
+# Your existing bot handlers (keep exactly the same)
 @app.on_message(filters.command("start"))
 async def start_command(client, message):
     keyboard = InlineKeyboardMarkup([
@@ -29,6 +42,7 @@ async def start_command(client, message):
     welcome_text = f"""🤖 **Face Swap Bot**
 
 ✅ **Bot is running successfully!**
+🟢 **Status: Healthy**
 
 **Available Features:**
 📸 Image Face Swap (Coming Soon)
@@ -64,8 +78,19 @@ async def handle_video(client, message):
 async def handle_text(client, message):
     await message.reply("👋 **Hello!**\n\nUse /start to see available options.\n\n✅ Face Swap Bot is working properly!")
 
-if __name__ == "__main__":
+# Start both health server and bot
+async def main():
+    # Start health check server
+    await start_health_server()
+    
+    # Start the bot
     print("🚀 Starting Face Swap Bot...")
     print("✅ All systems ready!")
-    app.run()
-                
+    await app.start()
+    
+    # Keep running
+    await asyncio.Event().wait()
+
+if __name__ == "__main__":
+    asyncio.run(main())
+    
