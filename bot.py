@@ -1,32 +1,46 @@
 import os
 import asyncio
+import logging
 from aiohttp import web
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
-# Get credentials from environment variables
+# Enable logging for debugging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+print("🚀 Face Swap Bot initializing...")
+
+# Get environment variables
 API_ID = int(os.getenv('API_ID'))
 API_HASH = os.getenv('API_HASH')
 BOT_TOKEN = os.getenv('BOT_TOKEN')
+PORT = int(os.getenv('PORT', 8000))
 
-# Debug: Check if environment variables are loaded
-print(f"API_ID: {API_ID}")
-print(f"API_HASH: {'Set' if API_HASH else 'Not Set'}")
-print(f"BOT_TOKEN: {'Set' if BOT_TOKEN else 'Not Set'}")
+print(f"✅ Credentials loaded - API_ID: {API_ID}, PORT: {PORT}")
 
-# Initialize Pyrogram client
-app = Client("face_swap_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
+# Initialize Pyrogram client with specific parameters for Koyeb
+app = Client(
+    "face_swap_bot",
+    api_id=API_ID,
+    api_hash=API_HASH,
+    bot_token=BOT_TOKEN,
+    workdir=".",
+    sleep_threshold=180  # Important for Koyeb stability
+)
 
-# Health check endpoints for Koyeb
+# Health check endpoints
 async def health_check(request):
-    return web.Response(text="✅ Face Swap Bot is healthy and running!", status=200)
+    return web.Response(text="✅ Face Swap Bot is healthy!", status=200)
 
-async def root_check(request):
-    return web.Response(text="🤖 Face Swap Bot - Ready for face swapping!", status=200)
+async def root_handler(request):
+    return web.Response(text="🤖 Face Swap Bot is running!", status=200)
 
-# Bot command handlers
+# Bot handlers
 @app.on_message(filters.command("start"))
 async def start_command(client, message):
+    print(f"📨 Received /start from user {message.from_user.id}")
+    
     keyboard = InlineKeyboardMarkup([
         [InlineKeyboardButton("📸 Image Swap", callback_data="image_swap")],
         [InlineKeyboardButton("🎥 Video Swap", callback_data="video_swap")],
@@ -48,74 +62,101 @@ async def start_command(client, message):
 
 Choose your swap type:"""
     
-    await message.reply(welcome_text, reply_markup=keyboard)
+    try:
+        await message.reply(welcome_text, reply_markup=keyboard)
+        print("✅ Start message sent successfully")
+    except Exception as e:
+        print(f"❌ Error sending start message: {e}")
 
-@app.on_callback_query(filters.regex("image_swap|video_swap|premium"))
-async def button_click(client, callback_query):
+@app.on_callback_query()
+async def handle_callbacks(client, callback_query):
+    print(f"🔘 Button pressed: {callback_query.data}")
+    
     data = callback_query.data
-    if data == "image_swap":
-        await callback_query.message.reply("📸 **Image Face Swap**\n\n🔧 Feature under development!\n✅ Bot is working properly.\n\nSend any photo to test bot response.")
-    elif data == "video_swap":
-        await callback_query.message.reply("🎥 **Video Face Swap**\n\n🔧 Feature under development!\n✅ Bot is working properly.\n\nSend any video to test bot response.")
-    elif data == "premium":
-        await callback_query.message.reply("💎 **Premium Features**\n\n🚀 Coming Soon:\n• Unlimited Face Swaps\n• HD Quality Output\n• Priority Processing\n• No Watermarks")
+    try:
+        if data == "image_swap":
+            await callback_query.message.reply("📸 **Image Face Swap**\n\n🔧 Feature under development!\n✅ Bot is working properly.\n\nSend any photo to test bot response.")
+        elif data == "video_swap":
+            await callback_query.message.reply("🎥 **Video Face Swap**\n\n🔧 Feature under development!\n✅ Bot is working properly.\n\nSend any video to test bot response.")
+        elif data == "premium":
+            await callback_query.message.reply("💎 **Premium Features**\n\n🚀 Coming Soon:\n• Unlimited Face Swaps\n• HD Quality Output\n• Priority Processing\n• No Watermarks")
+        
+        await callback_query.answer()
+        print("✅ Callback handled successfully")
+    except Exception as e:
+        print(f"❌ Error handling callback: {e}")
 
 @app.on_message(filters.photo)
-async def handle_image(client, message):
-    await message.reply("📸 **Photo Received!**\n\n✅ Bot is processing images correctly.\n🔧 Face swap feature will be added soon.\n\n**File Info:**\n• Type: Photo\n• Size: Available\n• User: " + str(message.from_user.first_name))
+async def handle_photo(client, message):
+    print(f"📷 Photo received from user {message.from_user.id}")
+    try:
+        await message.reply("📸 **Photo Received!**\n\n✅ Bot is processing images correctly.\n🔧 Face swap feature will be added soon.")
+        print("✅ Photo response sent")
+    except Exception as e:
+        print(f"❌ Error handling photo: {e}")
 
 @app.on_message(filters.video)
 async def handle_video(client, message):
-    await message.reply("🎥 **Video Received!**\n\n✅ Bot is processing videos correctly.\n🔧 Face swap feature will be added soon.\n\n**File Info:**\n• Type: Video\n• Duration: Available\n• User: " + str(message.from_user.first_name))
+    print(f"🎥 Video received from user {message.from_user.id}")
+    try:
+        await message.reply("🎥 **Video Received!**\n\n✅ Bot is processing videos correctly.\n🔧 Face swap feature will be added soon.")
+        print("✅ Video response sent")
+    except Exception as e:
+        print(f"❌ Error handling video: {e}")
 
 @app.on_message(filters.text & ~filters.command(["start"]))
 async def handle_text(client, message):
-    await message.reply("👋 **Hello!**\n\nUse /start to see available options.\n\n✅ Face Swap Bot is working properly!")
+    try:
+        await message.reply("👋 **Hello!**\n\nUse /start to see available options.\n\n✅ Face Swap Bot is working properly!")
+    except Exception as e:
+        print(f"❌ Error handling text: {e}")
 
-# Main function that starts everything
+# Main function
 async def main():
-    print("🚀 Starting Face Swap Bot...")
+    print("🔧 Starting Face Swap Bot services...")
     
-    # Create and start health check web server FIRST
+    # Start health check web server
     health_app = web.Application()
-    health_app.router.add_get('/', root_check)
+    health_app.router.add_get('/', root_handler)
     health_app.router.add_get('/health', health_check)
     
-    # Setup web server
     runner = web.AppRunner(health_app)
     await runner.setup()
     
-    # Get port from environment variable (Koyeb sets this automatically)
-    port = int(os.getenv('PORT', 8000))
-    site = web.TCPSite(runner, '0.0.0.0', port)
+    site = web.TCPSite(runner, '0.0.0.0', PORT)
     await site.start()
+    print(f"✅ Health server started on port {PORT}")
     
-    print(f"✅ Health check server started on port {port}")
-    print("🌐 Koyeb health checks will now pass!")
+    # Start Telegram bot
+    try:
+        await app.start()
+        print("✅ Telegram bot started successfully!")
+        print("🤖 Face Swap Bot is fully operational!")
+        
+        # Get bot info
+        me = await app.get_me()
+        print(f"📱 Bot username: @{me.username}")
+        
+    except Exception as e:
+        print(f"❌ Error starting Telegram bot: {e}")
+        return
     
-    # Give the web server a moment to fully initialize
-    await asyncio.sleep(2)
-    
-    # Start the Telegram bot
-    await app.start()
-    print("✅ Telegram bot connected and ready!")
-    print("🤖 Face Swap Bot is fully operational!")
-    
-    # Keep the application running forever
+    # Keep running
+    print("🔄 Bot is running... Press Ctrl+C to stop")
     try:
         await asyncio.Event().wait()
     except KeyboardInterrupt:
-        print("🛑 Bot stopped by user")
+        print("🛑 Shutting down...")
+    finally:
         await app.stop()
         await runner.cleanup()
 
-# Entry point
 if __name__ == "__main__":
     print("⚡ Initializing Face Swap Bot...")
-    print("🔧 Setting up health checks for Koyeb...")
-    
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
         print("👋 Face Swap Bot shutdown complete")
-            
+    except Exception as e:
+        print(f"💥 Fatal error: {e}")
+    
