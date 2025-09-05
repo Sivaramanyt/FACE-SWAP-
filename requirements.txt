@@ -1,0 +1,8 @@
+pyrogram
+TgCrypto
+opencv-python
+insightface
+gfpgan
+numpy
+aiofiles
+aiohttp
