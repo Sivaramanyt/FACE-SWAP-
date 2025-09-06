@@ -362,8 +362,13 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     elif query.data == "back_main":
         await start_command(update, context)
-async def photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def photo_handler(update, context):
+    print("🔥 PHOTO RECEIVED!")
+    import os
+    print("🔥 API KEY:", os.getenv('RAPIDAPI_KEY', 'MISSING')[:10])
+    
     user_id = update.effective_user.id
+    # more code here...
     user_data = get_user_data(user_id)
     waiting_for = context.user_data.get('waiting_for')
     
