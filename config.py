@@ -4,7 +4,7 @@ import os
 BOT_TOKEN = "8261755198:AAFikWiiAzIuRN_p8UmAtWslhhy18ia2TBg"
 API_ID = os.getenv('29542645')
 API_HASH = os.getenv('06e505b8418565356ae79365df5d69e0')
-RAPIDAPI_KEY = os.getenv('RAPIDAPI_KEY', '20ec46982dmsh0b6132b905f7ec8p169950jsneeab9433363f')
+RAPIDAPI_KEY = os.getenv('RAPIDAPI_KEY', 'a54b226fc9mshba7a31b1a00e992p1c8a97jsnbd36cadbedfc')
 
 # Server Configuration
 PORT = int(os.getenv('PORT', 8080))  # Your default port
