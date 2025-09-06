@@ -1,7 +1,7 @@
 import os
 
 # Bot Configuration
-BOT_TOKEN = os.getenv('8261755198:AAEjBmyB6-grhuosqIw1b6UlqZu7zyTD7eM')
+BOT_TOKEN = os.getenv('8261755198:AAFikWiiAzIuRN_p8UmAtWslhhy18ia2TBg')
 API_ID = os.getenv('29542645')
 API_HASH = os.getenv('06e505b8418565356ae79365df5d69e0')
 RAPIDAPI_KEY = os.getenv('RAPIDAPI_KEY', '20ec46982dmsh0b6132b905f7ec8p169950jsneeab9433363f')
