@@ -1,35 +1,79 @@
-from pyrogram import filters
-from pyrogram.types import Message
-from face_swap import FaceSwapper
-from database import check_user_limits, update_usage
+import logging
+from telegram import Update
+from telegram.ext import ContextTypes
+from face_swap import swap_faces_api
 
-swapper = FaceSwapper()
+# Setup logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-@app.on_message(filters.photo)
-async def handle_image_swap(client, message: Message):
-    user_id = message.from_user.id
+async def handle_image_swap(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle image swap with debug logging"""
+    user_id = update.effective_user.id
+    waiting_for = context.user_data.get('waiting_for')
     
-    # Check user limits
-    if not check_user_limits(user_id, 'image'):
-        await message.reply("⚠️ Daily limit reached! Upgrade to premium for unlimited swaps.")
-        return
+    print(f"📸 IMAGE HANDLER DEBUG: Photo received from user {user_id}")
+    print(f"🔍 Current waiting_for state: {waiting_for}")
     
-    await message.reply("📸 Processing your image swap... Please wait.")
-    
-    # Download and process images
-    image_path = await client.download_media(message.photo)
-    
-    if message.reply_to_message and message.reply_to_message.photo:
-        target_path = await client.download_media(message.reply_to_message.photo)
+    try:
+        # Download photo
+        photo_file = await update.message.photo[-1].get_file()
+        photo_data = await photo_file.download_as_bytearray()
+        print(f"📸 Image downloaded: {len(photo_data)} bytes")
         
-        # Process face swap
-        result = await swapper.process_image_swap(image_path, target_path)
-        
-        if result is not None:
-            cv2.imwrite('swapped_image.jpg', result)
-            await client.send_photo(message.chat.id, 'swapped_image.jpg')
-            update_usage(user_id, 'image')
+        # Check what we're waiting for
+        if waiting_for == 'image_swap_source':
+            # Store source image
+            context.user_data['source_image'] = photo_data
+            context.user_data['waiting_for'] = 'image_swap_target'
+            print("📝 Stored as source image, waiting for target")
+            
+            await update.message.reply_text(
+                "✅ **Source image received!**\n\n📤 **Now send the target image** (face to replace)"
+            )
+            
+        elif waiting_for == 'image_swap_target':
+            # Get source image and perform swap
+            source_data = context.user_data.get('source_image')
+            if not source_data:
+                print("❌ ERROR: No source image found in context")
+                await update.message.reply_text("❌ Error: Source image not found. Please start over.")
+                return
+                
+            print("🔄 IMAGE HANDLER: About to call face swap API...")
+            print(f"📊 Source size: {len(source_data)} bytes")
+            print(f"📊 Target size: {len(photo_data)} bytes")
+            
+            # Call face swap API
+            result = await swap_faces_api(source_data, photo_data, 'standard')
+            print(f"🎯 IMAGE HANDLER: Result = {'SUCCESS' if result else 'FAILED'}")
+            
+            if result:
+                print("✅ Sending swapped image to user")
+                await update.message.reply_photo(
+                    photo=result,
+                    caption="✅ **Face swap completed!**\n\n💎 Upgrade to Premium for HD quality!"
+                )
+                logger.info(f"Successfully sent swapped image to user {user_id}")
+            else:
+                print("❌ Sending error message to user")
+                await update.message.reply_text(
+                    "❌ **Processing failed!**\n\nPlease try again in a few minutes."
+                )
+                logger.info(f"Face swap failed for user {user_id}")
+            
+            # Clear context
+            context.user_data.clear()
+            print("🧹 Cleared user context")
+            
         else:
-            await message.reply("❌ Face swap failed. Make sure both images contain clear faces.")
-    else:
-        await message.reply("Please reply to another photo to swap faces.")
+            print(f"⚠️ Unexpected state: {waiting_for}")
+            await update.message.reply_text(
+                "📸 **Photo received!**\n\nUse /start to begin face swapping!"
+            )
+            
+    except Exception as e:
+        print(f"❌ IMAGE HANDLER EXCEPTION: {str(e)}")
+        logger.error(f"Exception in image handler: {e}")
+        await update.message.reply_text("❌ **Error processing image!**\n\nPlease try again.")
+            
